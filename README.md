@@ -1,5 +1,10 @@
 # Hookable Deployment of Releases
 
+[![Go Tests](https://github.com/nkcr/Hodor/actions/workflows/go.yml/badge.svg)](https://github.com/nkcr/Hodor/actions/workflows/go.yml)
+[![Coverage Status](https://coveralls.io/repos/github/nkcr/Hodor/badge.svg?branch=main)](https://coveralls.io/github/nkcr/Hodor?branch=main)
+[![Go Report Card](https://goreportcard.com/badge/github.com/nkcr/hodor)](https://goreportcard.com/report/github.com/nkcr/hodor)
+[![Go Reference](https://pkg.go.dev/badge/github.com/nkcr/hodor.svg)](https://pkg.go.dev/github.com/nkcr/hodor)
+
 Hodor is a service that deploys releases locally based on HTTP requests. It
 can be used from a CI/CD to automatically deploy the new version of a software.
 
