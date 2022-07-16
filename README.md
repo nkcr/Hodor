@@ -1,3 +1,8 @@
+<div align="center">
+<img width="300" src=".assets/logo-white.png#gh-light-mode-only"/>
+<img width="300" src=".assets/logo-white.png#gh-dark-mode-only"/>
+</div>
+
 # Hookable Deployment of Releases
 
 [![Go Tests](https://github.com/nkcr/Hodor/actions/workflows/go.yml/badge.svg)](https://github.com/nkcr/Hodor/actions/workflows/go.yml)
