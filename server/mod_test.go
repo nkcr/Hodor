@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -227,6 +228,84 @@ func TestGetStatusHandler_Pass(t *testing.T) {
 	require.Equal(t, "{\"status\":\"XX\",\"message\":\"\"}\n", string(buff))
 }
 
+func TestGetTagsHandler_Wrong_Action(t *testing.T) {
+	deployer := fakeDeployer{}
+
+	handler := getTagsHandler(deployer)
+
+	rr := httptest.NewRecorder()
+	req, err := http.NewRequest(http.MethodPost, "", nil)
+	require.NoError(t, err)
+
+	handler(rr, req)
+
+	require.Equal(t, http.StatusForbidden, rr.Result().StatusCode)
+
+	buff, err := ioutil.ReadAll(rr.Result().Body)
+	require.NoError(t, err)
+	require.Equal(t, "wrong action\n", string(buff))
+}
+
+func TestGetTagsHandler_Deployer_Fail(t *testing.T) {
+	deployer := fakeDeployer{
+		latestTagErr: errors.New("fake"),
+	}
+
+	handler := getTagsHandler(deployer)
+
+	rr := httptest.NewRecorder()
+	req, err := http.NewRequest(http.MethodGet, "", nil)
+	require.NoError(t, err)
+
+	handler(rr, req)
+
+	require.Equal(t, http.StatusInternalServerError, rr.Result().StatusCode)
+
+	buff, err := ioutil.ReadAll(rr.Result().Body)
+	require.NoError(t, err)
+	require.Equal(t, "failed to get tag: fake\n", string(buff))
+}
+
+func TestGetTagsHandler_Pass_Text(t *testing.T) {
+	deployer := fakeDeployer{
+		latestTag: "XX",
+	}
+
+	handler := getTagsHandler(deployer)
+
+	rr := httptest.NewRecorder()
+	req, err := http.NewRequest(http.MethodGet, "", nil)
+	require.NoError(t, err)
+
+	handler(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Result().StatusCode)
+
+	buff, err := ioutil.ReadAll(rr.Result().Body)
+	require.NoError(t, err)
+	require.Equal(t, "XX", string(buff))
+}
+
+func TestGetTagsHandler_Pass_SVG(t *testing.T) {
+	deployer := fakeDeployer{
+		latestTag: "XX",
+	}
+
+	handler := getTagsHandler(deployer)
+
+	rr := httptest.NewRecorder()
+	req, err := http.NewRequest(http.MethodGet, "?format=svg", nil)
+	require.NoError(t, err)
+
+	handler(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Result().StatusCode)
+
+	buff, err := ioutil.ReadAll(rr.Result().Body)
+	require.NoError(t, err)
+	require.True(t, strings.HasPrefix(string(buff), "<svg"))
+}
+
 // ----------------------------------------------------------------------------
 // Utility function
 
@@ -238,12 +317,19 @@ type fakeDeployer struct {
 
 	status    deployer.JobStatus
 	statusErr error
+
+	latestTag    string
+	latestTagErr error
 }
 
-func (d fakeDeployer) Deploy(releaseID string, releaseURL *url.URL) (string, error) {
+func (d fakeDeployer) Deploy(releaseID, tag string, releaseURL *url.URL) (string, error) {
 	return d.deployReturn, d.deployeErr
 }
 
 func (d fakeDeployer) GetStatus(jobID string) (deployer.JobStatus, error) {
 	return d.status, d.statusErr
+}
+
+func (d fakeDeployer) GetLatestTag(releaseID string) (string, error) {
+	return d.latestTag, d.latestTagErr
 }

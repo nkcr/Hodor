@@ -12,11 +12,14 @@ import (
 
 	"github.com/nkcr/hodor/deployer"
 	"github.com/rs/zerolog"
+
+	"github.com/narqo/go-badge"
 )
 
 // request is the expected input from a hook request
 type request struct {
 	BrowserDownloadURL string `json:"browser_download_url"`
+	Tag                string `json:"tag"`
 }
 
 // HTTP defines the primitives expected from a basic HTTP server
@@ -46,6 +49,8 @@ func NewHookHTTP(addr string, deployer deployer.Deployer, logger zerolog.Logger)
 	mux.HandleFunc("/api/hook/", getHookHandler(deployer))
 	// GET /api/status/:jobID
 	mux.HandleFunc("/api/status/", getStatusHandler(deployer))
+	// GET /api/tags/:releaseID
+	mux.HandleFunc("/api/tags/", getTagsHandler(deployer))
 
 	server := &http.Server{
 		Addr:         addr,
@@ -161,7 +166,7 @@ func getHookHandler(deployer deployer.Deployer) func(http.ResponseWriter, *http.
 			return
 		}
 
-		jobID, err := deployer.Deploy(key, releaseURL)
+		jobID, err := deployer.Deploy(key, req.Tag, releaseURL)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to deploy: %v", err),
 				http.StatusInternalServerError)
@@ -204,6 +209,39 @@ func getStatusHandler(deployer deployer.Deployer) func(http.ResponseWriter, *htt
 			http.Error(w, fmt.Errorf("failed to encode: %v", err).Error(),
 				http.StatusInternalServerError)
 			return
+		}
+	}
+}
+
+// getTagsHandler return a handler that responds to GET requests to get the
+// latest tag saved for a releaseID.
+func getTagsHandler(deployer deployer.Deployer) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "wrong action", http.StatusForbidden)
+			return
+		}
+
+		releaseID := path.Base(r.URL.Path)
+
+		tag, err := deployer.GetLatestTag(releaseID)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("failed to get tag: %v", err),
+				http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Add("Access-Control-Allow-Origin", "*")
+
+		format := r.FormValue("format")
+
+		switch format {
+		case "svg":
+			w.Header().Add("Content-Type", "text/html")
+			badge.Render("Deployed", tag, badge.ColorBlue, w)
+		default:
+			w.Header().Add("Content-Type", "text/plain")
+			w.Write([]byte(tag))
 		}
 	}
 }

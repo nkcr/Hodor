@@ -27,6 +27,7 @@ func TestDeployer_Scenario_Pass(t *testing.T) {
 	require.NoError(t, err)
 
 	releaseID := "XX"
+	tag := "YY"
 
 	tmpDir, err := ioutil.TempDir("", "hodortest")
 	require.NoError(t, err)
@@ -66,7 +67,7 @@ func TestDeployer_Scenario_Pass(t *testing.T) {
 
 	time.Sleep(time.Second)
 
-	jobID, err := deployer.Deploy(releaseID, &url.URL{})
+	jobID, err := deployer.Deploy(releaseID, tag, &url.URL{})
 	require.NoError(t, err)
 
 	time.Sleep(time.Second)
@@ -76,6 +77,11 @@ func TestDeployer_Scenario_Pass(t *testing.T) {
 
 	require.Equal(t, "ok", status.Status)
 	require.Equal(t, "job done", status.Message)
+
+	latestTag, err := deployer.GetLatestTag(releaseID)
+
+	require.NoError(t, err)
+	require.Equal(t, tag, latestTag)
 
 	fileInfos, err := ioutil.ReadDir(target)
 	require.NoError(t, err)
@@ -211,7 +217,7 @@ func TestDeploy_Not_Started(t *testing.T) {
 		stop: true,
 	}
 
-	_, err := fd.Deploy("", nil)
+	_, err := fd.Deploy("", "", nil)
 	require.EqualError(t, err, "deployer is stopped")
 }
 
@@ -220,7 +226,7 @@ func TestDeploy_Update_Status_Fail(t *testing.T) {
 		serde: fakeSerde{err: errors.New("fake")},
 	}
 
-	_, err := fd.Deploy("", nil)
+	_, err := fd.Deploy("", "", nil)
 	require.EqualError(t, err, "failed to set job status: failed to marshal status: fake")
 }
 
@@ -234,7 +240,7 @@ func TestDeploy_Update_Buffer_Full(t *testing.T) {
 		jobs:  make(chan job),
 	}
 
-	_, err = fd.Deploy("", nil)
+	_, err = fd.Deploy("", "", nil)
 	require.EqualError(t, err, "buffer is full, re-try later")
 }
 
@@ -272,6 +278,20 @@ func TestGetStatus_Unmarshal_Fail(t *testing.T) {
 
 	_, err = fd.GetStatus(key)
 	require.EqualError(t, err, "failed to unmarshal job status: fake")
+}
+
+func TestGetLatestTag_Not_Found(t *testing.T) {
+	db, err := buntdb.Open(":memory:")
+	require.NoError(t, err)
+
+	fd := FileDeployer{
+		db: db,
+	}
+
+	tag, err := fd.GetLatestTag("XX")
+
+	require.NoError(t, err)
+	require.Equal(t, "unknown", tag)
 }
 
 func TestHandleJob_Release_Not_Found(t *testing.T) {
