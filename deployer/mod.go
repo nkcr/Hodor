@@ -67,16 +67,24 @@ type Deployer interface {
 	Stop()
 	// Deploy triggers a job to deploy a release. It returns a jobID that can be
 	// used to check the job's status.
-	Deploy(releaseID string, releaseURL *url.URL) (string, error)
+	Deploy(releaseID, tag string, releaseURL *url.URL) (string, error)
 	// GetStatus returns the status of a job
 	GetStatus(jobID string) (JobStatus, error)
+	// GetLatestTag returns the latest tag associated to the release. If not tag
+	// is found, returns 'unknown'.
+	GetLatestTag(releaseID string) (string, error)
 }
 
 // newJob returns a new initialized job
-func newJob(releaseID string, releaseURL *url.URL) job {
+func newJob(releaseID, tag string, releaseURL *url.URL) job {
+	if tag == "" {
+		tag = "unknown"
+	}
+
 	return job{
 		id:         xid.New().String(),
 		releaseID:  releaseID,
+		tag:        tag,
 		releaseURL: releaseURL,
 	}
 }
@@ -86,6 +94,7 @@ func newJob(releaseID string, releaseURL *url.URL) job {
 type job struct {
 	id         string
 	releaseID  string
+	tag        string
 	releaseURL *url.URL
 }
 
@@ -150,6 +159,14 @@ func (fd *FileDeployer) processJobs() {
 		if err != nil {
 			fd.logger.Err(err).Msg("job ok: failed to save status")
 		}
+
+		fd.db.Update(func(tx *buntdb.Tx) error {
+			_, _, err := tx.Set(job.releaseID, job.tag, nil)
+			if err != nil {
+				fd.logger.Err(err).Msg("failed to save tag")
+			}
+			return nil
+		})
 	}
 }
 
@@ -196,14 +213,14 @@ func (fd *FileDeployer) getStop() bool {
 }
 
 // Deploy implements deployer.Deployer. It adds a new job to the queue.
-func (fd *FileDeployer) Deploy(releaseID string, releaseURL *url.URL) (string, error) {
+func (fd *FileDeployer) Deploy(releaseID, tag string, releaseURL *url.URL) (string, error) {
 	fd.logger.Info().Msgf("deploying release %q from %q", releaseID, releaseURL)
 
 	if fd.getStop() {
 		return "", errors.New("deployer is stopped")
 	}
 
-	job := newJob(releaseID, releaseURL)
+	job := newJob(releaseID, tag, releaseURL)
 
 	err := fd.saveJobStatus(job.id, "created", "job has been created")
 	if err != nil {
@@ -243,6 +260,27 @@ func (fd *FileDeployer) GetStatus(key string) (JobStatus, error) {
 	}
 
 	return jobStatus, nil
+}
+
+// GetLatestTag implements deployer.Deployer
+func (fd *FileDeployer) GetLatestTag(releaseID string) (string, error) {
+	var tag string
+	var err error
+
+	err = fd.db.View(func(tx *buntdb.Tx) error {
+		tag, err = tx.Get(releaseID)
+		return err
+	})
+
+	if err == buntdb.ErrNotFound {
+		return "unknown", nil
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("failed to get tag: %v", err)
+	}
+
+	return tag, nil
 }
 
 // handleJob is called by the queue processor and processes a job. It downloads,
