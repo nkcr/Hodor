@@ -237,7 +237,7 @@ func getTagsHandler(deployer deployer.Deployer) func(http.ResponseWriter, *http.
 
 		switch format {
 		case "svg":
-			w.Header().Add("Content-Type", "text/html")
+			w.Header().Add("Content-Type", "image/svg+xml;charset=utf-8")
 			badge.Render("Deployed", tag, badge.ColorBlue, w)
 		default:
 			w.Header().Add("Content-Type", "text/plain")
