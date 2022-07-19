@@ -231,7 +231,14 @@ func getTagsHandler(deployer deployer.Deployer) func(http.ResponseWriter, *http.
 			return
 		}
 
+		cacheSince := time.Now().Format(http.TimeFormat)
+		cacheUntil := time.Now().Add(time.Minute * 2).Format(http.TimeFormat)
+
 		w.Header().Add("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Cache-Control", "max-age=120, s-maxage=120")
+		w.Header().Set("Date", cacheSince)
+		w.Header().Set("Last-Modified", cacheSince)
+		w.Header().Set("Expires", cacheUntil)
 
 		format := r.FormValue("format")
 

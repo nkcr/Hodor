@@ -49,7 +49,7 @@ curl -X GET /api/tags/<releaseID>?format=SVG
 <svg>...</svg>
 
 # Get in plain text:
-curl -X GET /api/tags/<releaseID>?format=SVG
+curl -X GET /api/tags/<releaseID>
 → text/plain
 v1.0.0
 ```
