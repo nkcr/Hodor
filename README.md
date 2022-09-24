@@ -1,5 +1,5 @@
 <div align="center">
-<img width="300" src=".assets/logo-white.png#gh-light-mode-only"/>
+<img width="300" src=".assets/logo-black.png#gh-light-mode-only"/>
 <img width="300" src=".assets/logo-white.png#gh-dark-mode-only"/>
 </div>
 
